@@ -1,21 +1,17 @@
 from flask import Flask, request, redirect, url_for, session, render_template_string, send_from_directory
 import os
 from werkzeug.utils import secure_filename
-import urllib.parse  # vCard linki için encode
+import urllib.parse
 
 app = Flask(__name__)
-
-# --- GÜVENLİK ---
-app.secret_key = 'değiştir_beni_güvenlik_için'  # GitHub'a yüklemeden önce güvenli bir anahtar ile değiştir
-
-# --- AYARLAR ---
+app.secret_key = 'yurtyapi25885'  # Güvenlik anahtarınızı üretim için daha güvenli hale getirin
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 600 * 1024 * 1024  # Maksimum 600MB dosya yüklenebilir
+app.config['MAX_CONTENT_LENGTH'] = 600 * 1024 * 1024  # 600MB limit
 
-# Upload klasörü yoksa oluştur
+# Upload klasörü oluştur
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- ŞİRKET BİLGİLERİ ---
+# Şirket bilgileri
 company_info = {
     "name": "YURT YAPI ALEMİNYUM SİSTEMLERİ",
     "phone": "+905353133790",
@@ -25,9 +21,7 @@ company_info = {
     "address": "İnönü mahallesi 361 sk no 48 BAĞCILAR / İSTANBUL"
 }
 
-# --- HTML ŞABLONLARI ---
-
-# Giriş Sayfası (şifresiz)
+# Giriş ekranı HTML
 MOBILE_LOGIN = '''
 <!DOCTYPE html>
 <html>
@@ -35,12 +29,11 @@ MOBILE_LOGIN = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yurt Yapı Giriş</title>
     <style>
-        * {box-sizing: border-box;}
-        body {font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5;}
-        .container {padding: 20px; height: 100vh; display: flex; flex-direction: column; justify-content: center;}
-        .login-card {background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
-        h2 {text-align: center; color: #333; margin-bottom: 20px;}
-        button {width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px;}
+        body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        .container { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
+        h2 { text-align: center; color: #333; }
+        button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -56,7 +49,7 @@ MOBILE_LOGIN = '''
 </html>
 '''
 
-# Ana Sayfa / Dashboard
+# Dashboard HTML
 MOBILE_DASHBOARD = '''
 <!DOCTYPE html>
 <html>
@@ -64,21 +57,20 @@ MOBILE_DASHBOARD = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company.name }}</title>
     <style>
-        * {box-sizing: border-box;}
-        body {font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5;}
-        .header {background: #3498db; color: white; padding: 15px; text-align: center;}
-        .logout-btn {position: absolute; right: 10px; top: 15px; background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px;}
-        .card {background: white; margin: 15px; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
-        .info-item {margin-bottom: 10px;}
-        .vcard-btn {display: block; text-align: center; background: #2ecc71; color: white; padding: 10px; border-radius: 5px; text-decoration: none; margin-top: 15px;}
-        .upload-form {margin-top: 20px;}
-        .file-list {margin-top: 15px;}
-        .file-item {padding: 12px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;}
-        .file-actions {display: flex; gap: 8px;}
-        .btn {padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px;}
-        .download-btn {background: #3498db; color: white;}
-        .delete-btn {background: #e74c3c; color: white; border: none; cursor: pointer;}
-        .no-files {text-align: center; color: #777; padding: 15px;}
+        body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        .header { background: #3498db; color: white; padding: 15px; text-align: center; position: relative; }
+        .logout-btn { position: absolute; right: 10px; top: 15px; background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .card { background: white; margin: 15px; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .info-item { margin-bottom: 10px; }
+        .vcard-btn { display: block; text-align: center; background: #2ecc71; color: white; padding: 10px; border-radius: 5px; text-decoration: none; margin-top: 15px; }
+        .upload-form { margin-top: 20px; }
+        .file-list { margin-top: 15px; }
+        .file-item { padding: 12px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .file-actions { display: flex; gap: 8px; }
+        .btn { padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; }
+        .download-btn { background: #3498db; color: white; }
+        .delete-btn { background: #e74c3c; color: white; border: none; cursor: pointer; }
+        .no-files { text-align: center; color: #777; padding: 15px; }
     </style>
 </head>
 <body>
@@ -88,7 +80,7 @@ MOBILE_DASHBOARD = '''
             <button type="submit" class="logout-btn">Çıkış</button>
         </form>
     </div>
-    
+
     <div class="card">
         <h3>İletişim Bilgileri</h3>
         <div class="info-item"><strong>Tel:</strong> <a href="tel:{{ company.phone }}">{{ company.phone }}</a></div>
@@ -96,14 +88,14 @@ MOBILE_DASHBOARD = '''
         <div class="info-item"><strong>Adres:</strong> {{ company.address }}</div>
         <a href="{{ vcard_link }}" download="yurt_yapi.vcf" class="vcard-btn">Rehbere Kaydet</a>
     </div>
-    
+
     <div class="card">
         <h3>Dosya Yöneticisi</h3>
         <form class="upload-form" method="POST" enctype="multipart/form-data" action="/upload">
-            <input type="file" name="file" style="width:100%; margin-bottom:10px;" required>
-            <button type="submit" class="btn download-btn" style="width:100%;">Dosya Yükle</button>
+            <input type="file" name="file" required style="margin-bottom: 10px; width: 100%;">
+            <button type="submit" class="btn download-btn" style="width: 100%;">Dosya Yükle</button>
         </form>
-        
+
         <div class="file-list">
             {% for file in files %}
             <div class="file-item">
@@ -124,8 +116,6 @@ MOBILE_DASHBOARD = '''
 </html>
 '''
 
-# --- ROTALAR ---
-
 @app.route('/', methods=['GET', 'POST'])
 def mobile_login():
     if request.method == 'POST':
@@ -137,10 +127,10 @@ def mobile_login():
 def mobile_dashboard():
     if not session.get('authenticated'):
         return redirect(url_for('mobile_login'))
-    
+
     files = os.listdir(app.config['UPLOAD_FOLDER'])
 
-    # vCard oluştur
+    # vCard içeriği
     vcard = (
         "BEGIN:VCARD\nVERSION:3.0\n"
         f"N:{company_info['name']}\n"
@@ -167,7 +157,7 @@ def upload_file():
 
     if 'file' not in request.files:
         return redirect(url_for('mobile_dashboard'))
-    
+
     file = request.files['file']
     if file.filename == '':
         return redirect(url_for('mobile_dashboard'))
@@ -189,6 +179,7 @@ def delete_file(filename):
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(filepath):
         os.remove(filepath)
+
     return redirect(url_for('mobile_dashboard'))
 
 @app.route('/logout', methods=['POST'])
@@ -196,6 +187,5 @@ def logout():
     session.pop('authenticated', None)
     return redirect(url_for('mobile_login'))
 
-# --- UYGULAMAYI BAŞLAT ---
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
