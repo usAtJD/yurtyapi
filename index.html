@@ -4,14 +4,18 @@ from werkzeug.utils import secure_filename
 import urllib.parse  # vCard linki için encode
 
 app = Flask(__name__)
-app.secret_key = 'yurtyapi25885'  # Güvenlik için değiştirin
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 600 * 1024 * 1024  # 600MB limit (changed from 16MB)
 
-# Otomatik upload klasörü oluştur
+# --- GÜVENLİK ---
+app.secret_key = 'değiştir_beni_güvenlik_için'  # GitHub'a yüklemeden önce güvenli bir anahtar ile değiştir
+
+# --- AYARLAR ---
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 600 * 1024 * 1024  # Maksimum 600MB dosya yüklenebilir
+
+# Upload klasörü yoksa oluştur
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Şirket bilgileri
+# --- ŞİRKET BİLGİLERİ ---
 company_info = {
     "name": "YURT YAPI ALEMİNYUM SİSTEMLERİ",
     "phone": "+905353133790",
@@ -21,12 +25,14 @@ company_info = {
     "address": "İnönü mahallesi 361 sk no 48 BAĞCILAR / İSTANBUL"
 }
 
-# Mobil uyumlu HTML şablonları (SADECE GİRİŞ ŞABLONUNDAN ŞİFRE KISMI KALDIRILDI)
+# --- HTML ŞABLONLARI ---
+
+# Giriş Sayfası (şifresiz)
 MOBILE_LOGIN = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yurt Yapı Giriş</title>
     <style>
         * {box-sizing: border-box;}
@@ -50,11 +56,12 @@ MOBILE_LOGIN = '''
 </html>
 '''
 
+# Ana Sayfa / Dashboard
 MOBILE_DASHBOARD = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company.name }}</title>
     <style>
         * {box-sizing: border-box;}
@@ -87,10 +94,7 @@ MOBILE_DASHBOARD = '''
         <div class="info-item"><strong>Tel:</strong> <a href="tel:{{ company.phone }}">{{ company.phone }}</a></div>
         <div class="info-item"><strong>E-posta:</strong> <a href="mailto:{{ company.email }}">{{ company.email }}</a></div>
         <div class="info-item"><strong>Adres:</strong> {{ company.address }}</div>
-        
-        <a href="{{ vcard_link }}" download="yurt_yapi.vcf" class="vcard-btn">
-            Rehbere Kaydet
-        </a>
+        <a href="{{ vcard_link }}" download="yurt_yapi.vcf" class="vcard-btn">Rehbere Kaydet</a>
     </div>
     
     <div class="card">
@@ -120,6 +124,8 @@ MOBILE_DASHBOARD = '''
 </html>
 '''
 
+# --- ROTALAR ---
+
 @app.route('/', methods=['GET', 'POST'])
 def mobile_login():
     if request.method == 'POST':
@@ -133,8 +139,8 @@ def mobile_dashboard():
         return redirect(url_for('mobile_login'))
     
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    
-    # vCard içeriğini url encode ile güvenli yapalım
+
+    # vCard oluştur
     vcard = (
         "BEGIN:VCARD\nVERSION:3.0\n"
         f"N:{company_info['name']}\n"
@@ -146,7 +152,7 @@ def mobile_dashboard():
         "END:VCARD"
     )
     vcard_encoded = "data:text/vcard;charset=utf-8," + urllib.parse.quote(vcard)
-    
+
     return render_template_string(
         MOBILE_DASHBOARD,
         company=company_info,
@@ -158,17 +164,17 @@ def mobile_dashboard():
 def upload_file():
     if not session.get('authenticated'):
         return redirect(url_for('mobile_login'))
-    
+
     if 'file' not in request.files:
         return redirect(url_for('mobile_dashboard'))
     
     file = request.files['file']
     if file.filename == '':
         return redirect(url_for('mobile_dashboard'))
-    
+
     filename = secure_filename(file.filename)
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
+
     return redirect(url_for('mobile_dashboard'))
 
 @app.route('/download/<filename>')
@@ -179,7 +185,7 @@ def download_file(filename):
 def delete_file(filename):
     if not session.get('authenticated'):
         return redirect(url_for('mobile_login'))
-    
+
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(filepath):
         os.remove(filepath)
@@ -190,6 +196,6 @@ def logout():
     session.pop('authenticated', None)
     return redirect(url_for('mobile_login'))
 
+# --- UYGULAMAYI BAŞLAT ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
